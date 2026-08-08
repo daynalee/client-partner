@@ -5,41 +5,22 @@ import {
 } from 'recharts'
 import { Card, Eyebrow, SectionTitle } from '../components/ui'
 import { fmtUSD, fmtWeek } from '../lib/format'
+import {
+  computeAllBriefs, defaultGoals,
+  type Brief, type CampMeta, type Kind, type Promo, type SeriesPoint,
+} from '../lib/pulse'
 import demoRaw from '../data/agentDemo.json'
 
-/* ---------- payload types ---------- */
-type Kind =
-  | 'roas_drop' | 'target_miss' | 'cpi_creep' | 'cpi_spike'
-  | 'spend_shift' | 'scale_opportunity' | 'ipm_decay'
-interface ActItem {
-  cid: string; org: string; name: string; kind: Kind
-  evidence: string; rec: string; spend: number; soft: boolean
-}
-interface ExpectedItem { cid: string; org: string; name: string; reason: string }
-interface PortfolioRow { org: string; spend: number; wow: number; d7: number | null; tgt: number | null }
-interface CheckbackItem { name: string; cid: string; kind: Kind; issued: string; note: string }
-interface Brief {
-  act: ActItem[]; watch: ActItem[]; expected: ExpectedItem[]
-  silent: { cid: string; org: string; name: string }[]
-  portfolio: PortfolioRow[]; checkback: CheckbackItem[]
-}
-interface SeriesPoint {
-  date: string; spend: number; cpa: number | null
-  d7: number | null; ctr: number | null; util: number | null
-}
-interface CampMeta {
-  org: string; game: string; campaign: string; campaign_id: string
-  campaign_type: string | null; roas_target: number | null; target_cpi: number | null
-}
 interface Demo {
-  generated: string; dates: string[]; maturityDays: number
-  promo: { org: string; start: string; end: string; label: string }
+  generated: string; briefDates: string[]; maturityDays: number
+  promo: Promo
   campaigns: Record<string, CampMeta>
   series: Record<string, SeriesPoint[]>
-  briefs: Record<string, Brief>
   groundTruth: Record<string, { cid: string; type: string }>
 }
 const demo = demoRaw as unknown as Demo
+const DEFAULT_GOALS = defaultGoals(demo.campaigns)
+const GOALS_KEY = 'pulse-goals-v1'
 
 /* ---------- labels & styles ---------- */
 const KIND_LABEL: Record<Kind, string> = {
@@ -49,7 +30,6 @@ const KIND_LABEL: Record<Kind, string> = {
   cpi_spike: 'CPA spike',
   spend_shift: 'Spend shift',
   scale_opportunity: 'Scale opportunity',
-  ipm_decay: 'Efficiency decay',
 }
 const KIND_STYLE: Record<Kind, string> = {
   roas_drop: 'bg-[#fbe9e9] text-[#a02c2c]',
@@ -58,7 +38,6 @@ const KIND_STYLE: Record<Kind, string> = {
   cpi_spike: 'bg-[#fdefe8] text-[#9a4a22]',
   spend_shift: 'bg-[#fdf6e3] text-[#7a5800]',
   scale_opportunity: 'bg-[#e9f7e9] text-[#006300]',
-  ipm_decay: 'bg-[#fdefe8] text-[#9a4a22]',
 }
 const x2 = (n: number) => `${n.toFixed(2)}x`
 const addDays = (iso: string, n: number) => {
@@ -66,7 +45,6 @@ const addDays = (iso: string, n: number) => {
   d.setDate(d.getDate() + n)
   return d.toISOString().slice(0, 10)
 }
-
 const AXIS = { fontSize: 11, fill: '#898781' }
 const GRID = '#e1e0d9'
 const BLUE = '#2a78d6'
@@ -75,7 +53,6 @@ const tooltipStyle = {
   borderRadius: 8, fontSize: 12, color: '#0b0b0b',
 }
 
-/* ---------- small pieces ---------- */
 function KindBadge({ kind }: { kind: Kind }) {
   return (
     <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${KIND_STYLE[kind]}`}>
@@ -83,7 +60,6 @@ function KindBadge({ kind }: { kind: Kind }) {
     </span>
   )
 }
-
 function CountChip({ label, n, tone }: { label: string; n: number; tone: string }) {
   return (
     <div className="flex items-center gap-1.5 text-xs text-ink-secondary">
@@ -94,7 +70,7 @@ function CountChip({ label, n, tone }: { label: string; n: number; tone: string 
 }
 
 /* ---------- evidence charts ---------- */
-function EvidencePanel({ cid, date }: { cid: string; date: string }) {
+function EvidencePanel({ cid, date, goal }: { cid: string; date: string; goal: number | null }) {
   const meta = demo.campaigns[cid]
   const cutoff = addDays(date, -demo.maturityDays)
   const pts = useMemo(
@@ -109,9 +85,7 @@ function EvidencePanel({ cid, date }: { cid: string; date: string }) {
     return (
       <Card>
         <Eyebrow>Evidence</Eyebrow>
-        <p className="mt-2 text-sm text-ink-secondary">
-          {meta.campaign} has no delivery yet as of this date.
-        </p>
+        <p className="mt-2 text-sm text-ink-secondary">{meta.campaign} — no delivery yet.</p>
       </Card>
     )
   }
@@ -119,19 +93,17 @@ function EvidencePanel({ cid, date }: { cid: string; date: string }) {
   const promoX1 = pts.find((p) => p.date >= demo.promo.start)?.date
   const promoX2 = pts.filter((p) => p.date <= demo.promo.end).at(-1)?.date
   const matX1 = pts.find((p) => p.date > cutoff)?.date
-  const target = meta.roas_target
   return (
     <Card className="lg:sticky lg:top-24">
       <Eyebrow>Evidence</Eyebrow>
       <h3 className="mt-1 font-serif text-lg leading-snug text-ink">{meta.campaign}</h3>
       <div className="mt-1 text-xs text-ink-muted">
-        {meta.org} · {meta.campaign_type ?? 'Conversions'}
-        {target ? ` · goal ${x2(target)}` : ''}
+        {meta.org} · {meta.campaign_type ?? 'Conversions'}{goal ? ` · goal ${x2(goal)}` : ''}
       </div>
 
       <div className="mt-5">
         <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          7d checkout ROAS <span className="normal-case font-normal">(matured cohorts only)</span>
+          Checkout ROAS · 7d cohort
         </div>
         <ResponsiveContainer width="100%" height={170}>
           <LineChart data={pts} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -150,9 +122,9 @@ function EvidencePanel({ cid, date }: { cid: string; date: string }) {
               <ReferenceArea x1={promoX1} x2={promoX2} fill={BLUE} fillOpacity={0.07}
                 label={{ value: demo.promo.label, position: 'insideTopLeft', fontSize: 10, fill: '#2a78d6' }} />
             )}
-            {target && (
-              <ReferenceLine y={target} stroke="#898781" strokeDasharray="4 4"
-                label={{ value: `goal ${x2(target)}`, position: 'insideBottomRight', fontSize: 10, fill: '#898781' }} />
+            {goal && (
+              <ReferenceLine y={goal} stroke="#898781" strokeDasharray="4 4"
+                label={{ value: `goal ${x2(goal)}`, position: 'insideBottomRight', fontSize: 10, fill: '#898781' }} />
             )}
             <Line type="monotone" dataKey="d7" stroke={BLUE} strokeWidth={2}
               dot={false} activeDot={{ r: 4 }} connectNulls={false} />
@@ -190,7 +162,9 @@ function EvidencePanel({ cid, date }: { cid: string; date: string }) {
       </div>
 
       <div className="mt-4">
-        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Daily spend</div>
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Daily spend
+        </div>
         <ResponsiveContainer width="100%" height={110}>
           <AreaChart data={pts} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
             <XAxis dataKey="date" tick={AXIS} tickLine={false} minTickGap={28}
@@ -207,7 +181,7 @@ function EvidencePanel({ cid, date }: { cid: string; date: string }) {
   )
 }
 
-/* ---------- ground truth (demo transparency) ---------- */
+/* ---------- ground truth ---------- */
 const TRUTH_LABEL: Record<string, string> = {
   roas_drop: 'Planted ROAS decline',
   cpi_creep: 'Planted creative fatigue',
@@ -217,13 +191,14 @@ const TRUTH_LABEL: Record<string, string> = {
   SILENT: 'Tiny test campaign (should stay silent)',
   'promo->Expected': 'Planned promo spike (should not alarm)',
 }
-
-function truthStatus(t: { cid: string; type: string }, upTo: string): string {
+function truthStatus(
+  t: { cid: string; type: string }, upTo: string, briefs: Record<string, Brief>,
+): string {
   const match = (cid: string) =>
     t.cid.endsWith('*') ? cid.startsWith(t.cid.slice(0, -1)) : cid === t.cid
-  for (const d of demo.dates) {
+  for (const d of demo.briefDates) {
     if (d > upTo) break
-    const b = demo.briefs[d]
+    const b = briefs[d]
     if (t.type === 'SILENT') continue
     if (t.type === 'learning' || t.type === 'promo->Expected') {
       if (b.expected.some((e) => match(e.cid))) return `in Expected since ${fmtWeek(d)} — never alarmed`
@@ -231,24 +206,36 @@ function truthStatus(t: { cid: string; type: string }, upTo: string): string {
       return `surfaced in Act on ${fmtWeek(d)}`
     }
   }
-  if (t.type === 'SILENT') return 'below volume floor — correctly silent every day'
-  return 'not yet visible at this date'
+  if (t.type === 'SILENT') return 'below volume floor — correctly silent'
+  return 'not visible at this date (or at current goals)'
 }
 
 /* ---------- page ---------- */
 export default function AgentBrief() {
-  const dates = demo.dates
+  const dates = demo.briefDates
+  const [goals, setGoals] = useState<Record<string, number>>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(GOALS_KEY) ?? '{}') as Record<string, number>
+      return { ...DEFAULT_GOALS, ...saved }
+    } catch {
+      return { ...DEFAULT_GOALS }
+    }
+  })
   const [idx, setIdx] = useState(dates.length - 1)
   const [playing, setPlaying] = useState(false)
-  const [selected, setSelected] = useState<string | null>(() => {
-    const last = demo.briefs[dates[dates.length - 1]]
-    return last.act[0]?.cid ?? null
-  })
+  const [selected, setSelected] = useState<string | null>(null)
   const [showTruth, setShowTruth] = useState(false)
 
+  const briefs = useMemo(
+    () => computeAllBriefs(demo.campaigns, demo.series, goals, demo.promo,
+      demo.maturityDays, dates),
+    [goals, dates],
+  )
   const date = dates[idx]
-  const brief = demo.briefs[date]
-  const maxAct = Math.max(...dates.map((d) => demo.briefs[d].act.length), 1)
+  const brief = briefs[date]
+  const maxAct = Math.max(...dates.map((d) => briefs[d].act.length), 1)
+  const goalsDirty = Object.keys(DEFAULT_GOALS)
+    .some((o) => goals[o] !== DEFAULT_GOALS[o])
 
   useEffect(() => {
     if (!playing) return
@@ -263,6 +250,19 @@ export default function AgentBrief() {
     }, 1000)
     return () => clearInterval(t)
   }, [playing, dates.length])
+
+  const setGoal = (org: string, v: number) => {
+    const next = { ...goals, [org]: v }
+    setGoals(next)
+    const overrides: Record<string, number> = {}
+    for (const [o, g] of Object.entries(next))
+      if (g !== DEFAULT_GOALS[o]) overrides[o] = g
+    localStorage.setItem(GOALS_KEY, JSON.stringify(overrides))
+  }
+  const resetGoals = () => {
+    setGoals({ ...DEFAULT_GOALS })
+    localStorage.removeItem(GOALS_KEY)
+  }
 
   const onPage = new Set([
     ...brief.act.map((f) => f.cid), ...brief.watch.map((f) => f.cid),
@@ -289,7 +289,7 @@ export default function AgentBrief() {
               }}
               className="rounded-full border border-hairline bg-surface px-4 py-1.5 text-sm font-medium text-ink hover:bg-hairline/40"
             >
-              {playing ? '⏸ Pause' : '▶ Replay the two weeks'}
+              {playing ? '⏸ Pause' : '▶ Replay'}
             </button>
             <span className="font-serif text-lg tabular-nums text-ink">
               {new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -299,20 +299,18 @@ export default function AgentBrief() {
       />
 
       <p className="max-w-3xl text-sm leading-relaxed text-ink-secondary">
-        Every day this agent re-reads the full campaign feed for seven fashion &amp; apparel
-        advertisers, checks each campaign against its own goal and history, and writes the brief
-        below — <span className="font-medium text-ink">what to act on, what it's watching, and what
-        it deliberately kept quiet about</span> (new launches still learning, planned promos,
-        campaigns too small to judge). Scrub the timeline to watch findings emerge as conversion
-        cohorts mature.
+        A daily triage of every campaign across seven advertisers: <span className="font-medium text-ink">act,
+        watch, or deliberately quiet</span> (learning, planned promos, low volume).
+        Scrub the timeline — and <span className="font-medium text-ink">edit any goal in the table</span> to
+        see the calls recompute.
       </p>
 
-      {/* timeline scrubber */}
+      {/* timeline */}
       <Card className="!p-4">
         <div className="overflow-x-auto">
           <div className="flex min-w-[560px] items-end gap-1">
           {dates.map((d, i) => {
-            const n = demo.briefs[d].act.length
+            const n = briefs[d].act.length
             const inPromo = d >= demo.promo.start && d <= demo.promo.end
             return (
               <button
@@ -326,7 +324,7 @@ export default function AgentBrief() {
                   style={{ height: `${10 + (n / maxAct) * 34}px` }}
                 />
                 <span className={`text-[10px] tabular-nums ${i === idx ? 'font-semibold text-ink' : 'text-ink-muted'} ${inPromo ? 'underline decoration-dotted' : ''}`}>
-                  {fmtWeek(d).replace(' ', ' ')}
+                  {fmtWeek(d)}
                 </span>
               </button>
             )
@@ -334,7 +332,7 @@ export default function AgentBrief() {
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between gap-4 text-[11px] text-ink-muted">
-          <span>Bar height = action items that day · dotted dates = client promo window</span>
+          <span>Bar = action items · dotted = promo</span>
           <span>{demo.promo.label}: {fmtWeek(demo.promo.start)}–{fmtWeek(demo.promo.end)}</span>
         </div>
       </Card>
@@ -342,7 +340,7 @@ export default function AgentBrief() {
       <div className="flex flex-wrap gap-5">
         <CountChip label="act now" n={brief.act.length} tone="bg-status-critical" />
         <CountChip label="watching" n={brief.watch.length} tone="bg-status-warning" />
-        <CountChip label="expected — checked, not flagged" n={brief.expected.length} tone="bg-status-good" />
+        <CountChip label="expected" n={brief.expected.length} tone="bg-status-good" />
         <CountChip label="below volume floor" n={brief.silent.length} tone="bg-hairline" />
       </div>
 
@@ -353,8 +351,7 @@ export default function AgentBrief() {
             <Eyebrow>Act</Eyebrow>
             {brief.act.length === 0 && (
               <Card className="!p-4 text-sm text-ink-secondary">
-                Nothing above threshold today — silence you can trust: every campaign was still
-                checked against its goal, its history, and the promo calendar.
+                Nothing above threshold — every campaign still checked.
               </Card>
             )}
             {brief.act.map((f) => (
@@ -404,7 +401,7 @@ export default function AgentBrief() {
           {/* EXPECTED */}
           {brief.expected.length > 0 && (
             <div className="space-y-2">
-              <Eyebrow>Expected — checked, deliberately not flagged</Eyebrow>
+              <Eyebrow>Expected — checked, not flagged</Eyebrow>
               {brief.expected.map((e, i) => (
                 <button
                   key={e.cid + i}
@@ -441,18 +438,26 @@ export default function AgentBrief() {
             </div>
           )}
 
-          {/* PORTFOLIO */}
+          {/* PORTFOLIO + GOALS */}
           <div className="space-y-2">
-            <Eyebrow>Portfolio as of {fmtWeek(date)}</Eyebrow>
+            <div className="flex items-baseline justify-between">
+              <Eyebrow>Portfolio · goals are editable</Eyebrow>
+              {goalsDirty && (
+                <button onClick={resetGoals}
+                  className="text-[11px] font-medium text-[#2a78d6] hover:underline">
+                  Reset goals
+                </button>
+              )}
+            </div>
             <Card className="!p-0 overflow-hidden">
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-hairline text-left text-[11px] uppercase tracking-[0.1em] text-ink-muted">
                     <th className="px-4 py-2.5 font-semibold">Advertiser</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">Spend 7d</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">Spend · last 7d</th>
                     <th className="px-4 py-2.5 text-right font-semibold">WoW</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">7d ROAS</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">Goal</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">ROAS · 7d cohort</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">Goal ✎</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -466,7 +471,20 @@ export default function AgentBrief() {
                       <td className={`px-4 py-2 text-right tabular-nums ${p.d7 !== null && p.tgt !== null ? (p.d7 >= p.tgt ? 'text-status-good-text' : 'text-[#a02c2c]') : ''}`}>
                         {p.d7 !== null ? x2(p.d7) : '–'}
                       </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-ink-muted">{p.tgt !== null ? x2(p.tgt) : '–'}</td>
+                      <td className="px-4 py-2 text-right">
+                        <span className="inline-flex items-center gap-0.5">
+                          <input
+                            type="number" step={0.1} min={0.5} max={10}
+                            value={goals[p.org] ?? ''}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value)
+                              if (!Number.isNaN(v)) setGoal(p.org, v)
+                            }}
+                            className={`w-14 rounded border bg-surface px-1.5 py-0.5 text-right tabular-nums text-[13px] outline-none focus:border-[#2a78d6] ${goals[p.org] !== DEFAULT_GOALS[p.org] ? 'border-[#2a78d6]/60 font-semibold text-[#2a78d6]' : 'border-hairline text-ink'}`}
+                          />
+                          <span className="text-ink-muted">x</span>
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -478,17 +496,18 @@ export default function AgentBrief() {
         {/* EVIDENCE */}
         <div>
           {evidenceCid
-            ? <EvidencePanel cid={evidenceCid} date={date} />
+            ? <EvidencePanel cid={evidenceCid} date={date}
+                goal={goals[demo.campaigns[evidenceCid]?.org] ?? null} />
             : (
               <Card>
                 <Eyebrow>Evidence</Eyebrow>
-                <p className="mt-2 text-sm text-ink-secondary">Select a finding to see the underlying data.</p>
+                <p className="mt-2 text-sm text-ink-secondary">Select a finding to see its data.</p>
               </Card>
             )}
         </div>
       </div>
 
-      {/* GROUND TRUTH + METHOD */}
+      {/* TRUTH + METHOD */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <div className="flex items-center justify-between">
@@ -497,20 +516,19 @@ export default function AgentBrief() {
               onClick={() => setShowTruth((s) => !s)}
               className="rounded-full border border-hairline px-3 py-1 text-xs font-medium text-ink hover:bg-hairline/40"
             >
-              {showTruth ? 'Hide' : 'Reveal'} the planted anomalies
+              {showTruth ? 'Hide' : 'Reveal'} planted anomalies
             </button>
           </div>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-secondary">
-            This dataset is synthetic, with seven known issues planted in it — the agent is scored
-            on catching every one in the right bucket while staying quiet on everything else.
+            Synthetic data with seven planted issues — the agent must catch each in the
+            right bucket and stay quiet otherwise.
           </p>
           {showTruth && (
             <ul className="mt-3 space-y-1.5 text-[13px]">
               {Object.values(demo.groundTruth).map((t, i) => (
                 <li key={i} className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-medium text-ink">{TRUTH_LABEL[t.type] ?? t.type}</span>
-                  <span className="text-ink-muted">({t.cid})</span>
-                  <span className="text-ink-secondary">— {truthStatus(t, date)}</span>
+                  <span className="text-ink-secondary">— {truthStatus(t, date, briefs)}</span>
                 </li>
               ))}
             </ul>
@@ -519,11 +537,12 @@ export default function AgentBrief() {
         <Card>
           <Eyebrow>How it decides</Eyebrow>
           <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed text-ink-secondary">
-            <li>· Every number is deterministic — a Python rule engine, not a chatbot guessing at charts.</li>
-            <li>· ROAS is judged on <span className="font-medium text-ink">matured cohorts only</span>; recent days are excluded, not misread as decline.</li>
-            <li>· Chronic under-performance is separated from <span className="font-medium text-ink">new</span> problems — known issues don't re-alarm daily.</li>
-            <li>· A client promo calendar keeps planned spikes out of the alarm list.</li>
-            <li>· Findings rank by <span className="font-medium text-ink">spend at stake</span>, not by percentage moved.</li>
+            <li>· Deterministic rule engine, computed live in your browser.</li>
+            <li>· ROAS judged on <span className="font-medium text-ink">matured cohorts only</span>.</li>
+            <li>· Chronic misses go to Watch — no daily re-alarms.</li>
+            <li>· Promo calendar keeps planned spikes quiet.</li>
+            <li>· Ranked by <span className="font-medium text-ink">spend at stake</span>.</li>
+            <li>· Goals are per-client inputs — change one and the brief recomputes.</li>
           </ul>
         </Card>
       </div>
