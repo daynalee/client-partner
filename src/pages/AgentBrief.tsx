@@ -274,8 +274,8 @@ export default function AgentBrief() {
   return (
     <div className="space-y-6">
       <SectionTitle
-        eyebrow="Performance agent"
-        title="Daily brief"
+        eyebrow="Daily performance agent"
+        title="Performance Pulse"
         right={
           <div className="flex items-center gap-3">
             <button

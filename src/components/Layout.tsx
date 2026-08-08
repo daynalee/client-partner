@@ -21,7 +21,7 @@ export default function Layout() {
           </NavLink>
           <nav className="flex items-center gap-1">
             <NavLink to="/" end className={navClass}>Portfolio</NavLink>
-            <NavLink to="/agent" className={navClass}>Daily Brief</NavLink>
+            <NavLink to="/agent" className={navClass}>Performance Pulse</NavLink>
             <NavLink to="/experiments" className={navClass}>Experiment Planner</NavLink>
             <NavLink to="/about" className={navClass}>About</NavLink>
           </nav>
