@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Portfolio from './pages/Portfolio'
 import ClientDetail from './pages/ClientDetail'
 import Experiments from './pages/Experiments'
+import AgentBrief from './pages/AgentBrief'
 import About from './pages/About'
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
           <Route index element={<Portfolio />} />
           <Route path="client/:clientId" element={<ClientDetail />} />
           <Route path="experiments" element={<Experiments />} />
+          <Route path="agent" element={<AgentBrief />} />
           <Route path="about" element={<About />} />
         </Route>
       </Routes>
