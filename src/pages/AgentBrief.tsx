@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ReferenceArea,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -53,18 +54,43 @@ const tooltipStyle = {
   borderRadius: 8, fontSize: 12, color: '#0b0b0b',
 }
 
-function KindBadge({ kind }: { kind: Kind }) {
+const KIND_TIP: Record<Kind, string> = {
+  roas_drop: 'Matured ROAS fell hard against this campaign\u2019s own baseline. Statistically significant, not day-to-day noise.',
+  target_miss: 'Below the client goal for a sustained stretch of matured days. Chronic misses sit in Watch instead.',
+  cpi_creep: 'Cost per checkout trending up for three weeks while CTR decays. The classic creative fatigue pattern.',
+  cpi_spike: 'Cost per checkout jumped against baseline without a matching creative signal. Usually bids, competition, or tracking.',
+  spend_shift: 'Delivery moved 40% or more against baseline. Could be intentional, so verify before diagnosing.',
+  scale_opportunity: 'Budget maxed out most of the week while ROAS held at or above goal. Room to grow.',
+}
+
+function Tip({ children, tip, side = 'center', underline = true }:
+  { children: ReactNode; tip: string; side?: 'center' | 'right'; underline?: boolean }) {
+  const pos = side === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${KIND_STYLE[kind]}`}>
-      {KIND_LABEL[kind]}
+    <span tabIndex={0}
+      className={`group relative inline-flex cursor-help items-center outline-none ${underline ? 'border-b border-dotted border-[#b9b7ae]' : ''}`}>
+      {children}
+      <span className={`pointer-events-none invisible absolute bottom-full ${pos} z-20 mb-1.5 w-60 rounded-lg bg-[#0b0b0b] px-3 py-2 text-left text-[11px] font-normal normal-case tracking-normal leading-relaxed text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100`}>
+        {tip}
+      </span>
     </span>
   )
 }
-function CountChip({ label, n, tone }: { label: string; n: number; tone: string }) {
+
+function KindBadge({ kind }: { kind: Kind }) {
+  return (
+    <Tip tip={KIND_TIP[kind]} underline={false}>
+      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${KIND_STYLE[kind]}`}>
+        {KIND_LABEL[kind]}
+      </span>
+    </Tip>
+  )
+}
+function CountChip({ label, n, tone, tip }: { label: string; n: number; tone: string; tip: string }) {
   return (
     <div className="flex items-center gap-1.5 text-xs text-ink-secondary">
       <span className={`h-2 w-2 rounded-full ${tone}`} />
-      <span className="font-semibold tabular-nums text-ink">{n}</span> {label}
+      <span className="font-semibold tabular-nums text-ink">{n}</span> <Tip tip={tip}>{label}</Tip>
     </div>
   )
 }
@@ -85,7 +111,7 @@ function EvidencePanel({ cid, date, goal }: { cid: string; date: string; goal: n
     return (
       <Card>
         <Eyebrow>Evidence</Eyebrow>
-        <p className="mt-2 text-sm text-ink-secondary">{meta.campaign} — no delivery yet.</p>
+        <p className="mt-2 text-sm text-ink-secondary">{meta.campaign}: no delivery yet.</p>
       </Card>
     )
   }
@@ -103,7 +129,7 @@ function EvidencePanel({ cid, date, goal }: { cid: string; date: string; goal: n
 
       <div className="mt-5">
         <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Checkout ROAS · 7d cohort
+          <Tip tip="Each point is one day's buyers, measured 7 days later. The shaded region is still maturing and is excluded from detection.">Checkout ROAS, 7d cohort</Tip>
         </div>
         <ResponsiveContainer width="100%" height={170}>
           <LineChart data={pts} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -201,12 +227,12 @@ function truthStatus(
     const b = briefs[d]
     if (t.type === 'SILENT') continue
     if (t.type === 'learning' || t.type === 'promo->Expected') {
-      if (b.expected.some((e) => match(e.cid))) return `in Expected since ${fmtWeek(d)} — never alarmed`
+      if (b.expected.some((e) => match(e.cid))) return `in Expected since ${fmtWeek(d)}, never alarmed`
     } else if (b.act.some((a) => match(a.cid) && a.kind === t.type)) {
       return `surfaced in Act on ${fmtWeek(d)}`
     }
   }
-  if (t.type === 'SILENT') return 'below volume floor — correctly silent'
+  if (t.type === 'SILENT') return 'below volume floor, stayed silent'
   return 'not visible at this date (or at current goals)'
 }
 
@@ -299,10 +325,10 @@ export default function AgentBrief() {
       />
 
       <p className="max-w-3xl text-sm leading-relaxed text-ink-secondary">
-        A daily triage of every campaign across seven advertisers: <span className="font-medium text-ink">act,
-        watch, or deliberately quiet</span> (learning, planned promos, low volume).
-        Scrub the timeline — and <span className="font-medium text-ink">edit any goal in the table</span> to
-        see the calls recompute.
+        A daily triage of every campaign across seven advertisers.
+        Scrub the timeline, hover anything dotted for a definition, and
+        <span className="font-medium text-ink"> edit any goal in the table</span> to watch the
+        calls recompute.
       </p>
 
       {/* timeline */}
@@ -316,7 +342,7 @@ export default function AgentBrief() {
               <button
                 key={d}
                 onClick={() => { setIdx(i); setPlaying(false) }}
-                title={`${fmtWeek(d)} — ${n} action item${n === 1 ? '' : 's'}`}
+                title={`${fmtWeek(d)}: ${n} action item${n === 1 ? '' : 's'}`}
                 className={`group flex flex-1 flex-col items-center gap-1 ${i === idx ? '' : 'opacity-60 hover:opacity-100'}`}
               >
                 <div
@@ -332,16 +358,20 @@ export default function AgentBrief() {
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between gap-4 text-[11px] text-ink-muted">
-          <span>Bar = action items · dotted = promo</span>
-          <span>{demo.promo.label}: {fmtWeek(demo.promo.start)}–{fmtWeek(demo.promo.end)}</span>
+          <span>Bar height shows that day's action items. Dotted dates fall in the promo window.</span>
+          <span>{demo.promo.label}: {fmtWeek(demo.promo.start)} to {fmtWeek(demo.promo.end)}</span>
         </div>
       </Card>
 
       <div className="flex flex-wrap gap-5">
-        <CountChip label="act now" n={brief.act.length} tone="bg-status-critical" />
-        <CountChip label="watching" n={brief.watch.length} tone="bg-status-warning" />
-        <CountChip label="expected" n={brief.expected.length} tone="bg-status-good" />
-        <CountChip label="below volume floor" n={brief.silent.length} tone="bg-hairline" />
+        <CountChip label="act now" n={brief.act.length} tone="bg-status-critical"
+          tip="Real changes worth a decision today, ranked by spend at stake." />
+        <CountChip label="watching" n={brief.watch.length} tone="bg-status-warning"
+          tip="Moving but not conclusive yet, or a chronic issue the client already knows about." />
+        <CountChip label="expected" n={brief.expected.length} tone="bg-status-good"
+          tip="Checked and explained: new launches still learning, planned promos. Quiet on purpose." />
+        <CountChip label="below volume floor" n={brief.silent.length} tone="bg-hairline"
+          tip="Too small to judge reliably. The agent stays silent rather than guessing." />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
@@ -351,7 +381,7 @@ export default function AgentBrief() {
             <Eyebrow>Act</Eyebrow>
             {brief.act.length === 0 && (
               <Card className="!p-4 text-sm text-ink-secondary">
-                Nothing above threshold — every campaign still checked.
+                Nothing above threshold. Every campaign was still checked.
               </Card>
             )}
             {brief.act.map((f) => (
@@ -369,12 +399,14 @@ export default function AgentBrief() {
                   </div>
                   <div className="mt-2 truncate text-sm font-medium text-ink" title={f.name}>{f.name}</div>
                   <div className="mt-1 text-[13px] leading-relaxed text-ink-secondary">{f.evidence}</div>
-                  <div className="mt-2 border-l-2 border-[#2a78d6]/40 pl-3 text-[13px] leading-relaxed text-ink">
-                    {f.rec}
-                  </div>
+                  <ul className="mt-2 space-y-1 border-l-2 border-[#2a78d6]/40 pl-3 text-[13px] leading-relaxed text-ink">
+                    {f.rec.map((r, ri) => (
+                      <li key={ri} className="flex gap-1.5"><span className="text-ink-muted">•</span><span>{r}</span></li>
+                    ))}
+                  </ul>
                   {f.soft && (
                     <div className="mt-1.5 text-[11px] italic text-ink-muted">
-                      conversions still attributing — re-check in 1–2 days
+                      conversions still attributing, check again in 1 to 2 days
                     </div>
                   )}
                 </button>
@@ -392,7 +424,7 @@ export default function AgentBrief() {
                   onClick={() => setSelected(f.cid)}
                   className="block w-full rounded-lg border border-hairline bg-surface px-4 py-2.5 text-left text-[13px] text-ink-secondary hover:bg-hairline/30"
                 >
-                  <span className="font-medium text-ink">{f.org}</span> — {f.evidence}
+                  <span className="font-medium text-ink">{f.org}</span>: {f.evidence}
                 </button>
               ))}
             </div>
@@ -401,7 +433,7 @@ export default function AgentBrief() {
           {/* EXPECTED */}
           {brief.expected.length > 0 && (
             <div className="space-y-2">
-              <Eyebrow>Expected — checked, not flagged</Eyebrow>
+              <Eyebrow>Expected (checked, not flagged)</Eyebrow>
               {brief.expected.map((e, i) => (
                 <button
                   key={e.cid + i}
@@ -409,7 +441,7 @@ export default function AgentBrief() {
                   className="block w-full rounded-lg border border-dashed border-hairline px-4 py-2.5 text-left text-[13px] text-ink-secondary hover:bg-hairline/30"
                 >
                   <span className="font-medium text-ink">{e.org}</span> · {e.name}
-                  <span className="text-ink-muted"> — {e.reason}</span>
+                  <span className="text-ink-muted"> ({e.reason})</span>
                 </button>
               ))}
             </div>
@@ -418,7 +450,7 @@ export default function AgentBrief() {
           {/* CHECK-BACK */}
           {brief.checkback.length > 0 && (
             <div className="space-y-2">
-              <Eyebrow>Check-back on yesterday's calls</Eyebrow>
+              <Eyebrow><Tip tip="Yesterday's action items, rescored with today's data. Accountability, not amnesia.">Check-back on yesterday's calls</Tip></Eyebrow>
               <Card className="!p-4">
                 <ul className="space-y-2 text-[13px]">
                   {brief.checkback.map((c, i) => {
@@ -441,7 +473,7 @@ export default function AgentBrief() {
           {/* PORTFOLIO + GOALS */}
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <Eyebrow>Portfolio · goals are editable</Eyebrow>
+              <Eyebrow>Portfolio</Eyebrow>
               {goalsDirty && (
                 <button onClick={resetGoals}
                   className="text-[11px] font-medium text-[#2a78d6] hover:underline">
@@ -454,10 +486,18 @@ export default function AgentBrief() {
                 <thead>
                   <tr className="border-b border-hairline text-left text-[11px] uppercase tracking-[0.1em] text-ink-muted">
                     <th className="px-4 py-2.5 font-semibold">Advertiser</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">Spend · last 7d</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">WoW</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">ROAS · 7d cohort</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">Goal ✎</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">
+                      <Tip side="right" tip="Spend summed over the trailing 7 calendar days.">Spend, last 7d</Tip>
+                    </th>
+                    <th className="px-4 py-2.5 text-right font-semibold">
+                      <Tip side="right" tip="Last 7 days vs the 7 days before that.">WoW</Tip>
+                    </th>
+                    <th className="px-4 py-2.5 text-right font-semibold">
+                      <Tip side="right" tip="Revenue by day 7 of each day's buyers, divided by that day's spend. Only matured days count, so recent days never read as decline.">ROAS, 7d cohort</Tip>
+                    </th>
+                    <th className="px-4 py-2.5 text-right font-semibold">
+                      <Tip side="right" tip="This client's target ROAS. Type a new number and the whole brief recomputes.">Goal ✎</Tip>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -520,15 +560,15 @@ export default function AgentBrief() {
             </button>
           </div>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-secondary">
-            Synthetic data with seven planted issues — the agent must catch each in the
-            right bucket and stay quiet otherwise.
+            Synthetic data with seven planted issues. The agent must catch each one in the
+            right bucket and stay quiet about everything else.
           </p>
           {showTruth && (
             <ul className="mt-3 space-y-1.5 text-[13px]">
               {Object.values(demo.groundTruth).map((t, i) => (
                 <li key={i} className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-medium text-ink">{TRUTH_LABEL[t.type] ?? t.type}</span>
-                  <span className="text-ink-secondary">— {truthStatus(t, date, briefs)}</span>
+                  <span className="text-ink-secondary">{truthStatus(t, date, briefs)}</span>
                 </li>
               ))}
             </ul>
@@ -536,13 +576,13 @@ export default function AgentBrief() {
         </Card>
         <Card>
           <Eyebrow>How it decides</Eyebrow>
-          <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed text-ink-secondary">
-            <li>· Deterministic rule engine, computed live in your browser.</li>
-            <li>· ROAS judged on <span className="font-medium text-ink">matured cohorts only</span>.</li>
-            <li>· Chronic misses go to Watch — no daily re-alarms.</li>
-            <li>· Promo calendar keeps planned spikes quiet.</li>
-            <li>· Ranked by <span className="font-medium text-ink">spend at stake</span>.</li>
-            <li>· Goals are per-client inputs — change one and the brief recomputes.</li>
+          <ul className="mt-2 list-inside list-disc space-y-1.5 text-[13px] leading-relaxed text-ink-secondary marker:text-ink-muted">
+            <li>Deterministic rules, computed live in your browser.</li>
+            <li>ROAS is judged on <span className="font-medium text-ink">matured cohorts only</span>.</li>
+            <li>Chronic misses sit in Watch. No daily re-alarms.</li>
+            <li>The promo calendar keeps planned spikes quiet.</li>
+            <li>Findings rank by <span className="font-medium text-ink">spend at stake</span>.</li>
+            <li>Goals are inputs. Change one and the brief recomputes.</li>
           </ul>
         </Card>
       </div>

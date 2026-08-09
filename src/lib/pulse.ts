@@ -18,7 +18,7 @@ export interface CampMeta {
 export interface Promo { org: string; start: string; end: string; label: string }
 export interface Finding {
   cid: string; org: string; name: string; kind: Kind
-  evidence: string; rec: string; spend: number; risk: number; soft: boolean
+  evidence: string; rec: string[]; spend: number; risk: number; soft: boolean
 }
 export interface ExpectedItem { cid: string; org: string; name: string; reason: string }
 export interface PortfolioRow { org: string; spend: number; wow: number; d7: number | null; tgt: number | null }
@@ -56,13 +56,32 @@ const SEVERITY: Record<Kind, number> = {
   roas_drop: 1.0, target_miss: 0.9, cpi_creep: 0.8,
   spend_shift: 0.7, scale_opportunity: 0.6, cpi_spike: 0.9,
 }
-const REC: Record<Kind, string> = {
-  roas_drop: 'Investigate ROAS decline; if auction-wide, re-test bid at -10-15%; if isolated, pull product-group / audience split to locate the source',
-  cpi_creep: 'CPA drifting up with efficiency decay - classic creative fatigue; refresh Pins / rotate new imagery into top ad groups',
-  cpi_spike: 'CPA jumped vs baseline; check bid changes, auction competition, or tag/feed breakage before reacting',
-  spend_shift: 'Spend moved sharply vs baseline; verify with client whether intentional (flight change/pause) before diagnosing',
-  scale_opportunity: 'Budget pegged with ROAS at/above goal - room to scale; propose daily-cap increase ahead of seasonal peak',
-  target_miss: 'Sustained below ROAS goal on matured attribution; discuss bid/audience changes before the client flags it',
+const REC: Record<Kind, string[]> = {
+  roas_drop: [
+    'Confirm whether the decline is auction wide or isolated to one product group or audience',
+    'Auction wide: retest bids 10 to 15% lower',
+    'Isolated: shift budget to the segments still at goal',
+  ],
+  cpi_creep: [
+    'Refresh creative and rotate new imagery into the top ad groups',
+    'Retire the weakest Pins rather than adding budget',
+  ],
+  cpi_spike: [
+    'Check for bid changes, new competition, or tag and feed breakage',
+    'Hold budget steady until the cause is known',
+  ],
+  spend_shift: [
+    'Confirm with the client whether this was intentional',
+    'If not, check budgets, flight dates, and billing',
+  ],
+  scale_opportunity: [
+    'Propose a daily cap increase while ROAS holds above goal',
+    'Time it ahead of the seasonal peak',
+  ],
+  target_miss: [
+    'Raise it with the client before they raise it with you',
+    'Agree on a bid or audience change and a date to review it',
+  ],
 }
 
 /* ---- small stats (match Python statistics semantics) ---- */
@@ -203,7 +222,7 @@ export function computeBrief(
         const sev = Math.abs(z) >= Z_ACT || (Math.abs(rel) >= 0.25 && Math.abs(z) >= Z_WATCH)
           ? 'act' : Math.abs(z) >= Z_WATCH ? 'watch' : null
         if (sev) findings.push([sev, 'roas_drop',
-          `matured 7d checkout ROAS ${x2(med)} -> ${x2(rec)} (${pct(rel)}, z=${z.toFixed(1)})`])
+          `matured 7d checkout ROAS fell from ${x2(med)} to ${x2(rec)} (${pct(rel)}, z=${z.toFixed(1)})`])
       }
     }
 
@@ -219,7 +238,7 @@ export function computeBrief(
         const chronic = older.length >= 10 && median(older) < thr
         findings.push([chronic ? 'watch' : 'act', 'target_miss',
           `matured 7d checkout ROAS ${x2(median(recentM))} vs ${x2(goal)} goal for ${recentM.length}+ matured days` +
-          (chronic ? ' (chronic — has missed goal all period)' : ' (new — was on goal during baseline)')])
+          (chronic ? ' (chronic: below goal all period)' : ' (new: was on goal during baseline)')])
       }
     }
 
@@ -248,7 +267,7 @@ export function computeBrief(
       const { z, rel, med, rec } = robustZ(bj.base, bj.recent)
       if (rel > MIN_REL_DELTA && Math.abs(z) >= Z_ACT)
         findings.push(['act', 'cpi_spike',
-          `CPA $${med.toFixed(2)} -> $${rec.toFixed(2)} (${pct(rel)}, z=${z.toFixed(1)})`])
+          `CPA rose from $${med.toFixed(2)} to $${rec.toFixed(2)} (${pct(rel)}, z=${z.toFixed(1)})`])
     }
 
     // 5) spend discontinuity
@@ -257,7 +276,7 @@ export function computeBrief(
       const { rel, med, rec } = robustZ(bs.base, bs.recent)
       if (Math.abs(rel) >= SPEND_SHIFT)
         findings.push(['act', 'spend_shift',
-          `spend $${Math.round(med).toLocaleString()}/d -> $${Math.round(rec).toLocaleString()}/d (${pct(rel)})`])
+          `spend moved from $${Math.round(med).toLocaleString()} to $${Math.round(rec).toLocaleString()} a day (${pct(rel)})`])
     }
 
     // 6) scale opportunity
@@ -275,7 +294,7 @@ export function computeBrief(
     if (promoLabel) {
       const kept: typeof findings = []
       for (const f of findings) {
-        const positiveSpend = f[1] === 'spend_shift' && f[2].includes('+')
+        const positiveSpend = f[1] === 'spend_shift' && f[2].includes('(+')
         if (f[1] === 'scale_opportunity' || positiveSpend)
           expected.push({ cid, org, name, reason: `planned promo: ${promoLabel} (${f[1].replace(/_/g, ' ')})` })
         else kept.push(f)
@@ -371,9 +390,9 @@ export function computeAllBriefs(
           const a = median(was), c = median(now)
           const delta = a ? (c - a) / a : 0
           const dir = CB_DIR[f.kind]
-          const verdict = dir && delta * dir > 0.10 ? 'recovered/improving'
+          const verdict = dir && delta * dir > 0.10 ? 'improving'
             : dir && delta * dir < -0.10 ? 'worsening' : 'unchanged'
-          note = `${verdict} (${a.toFixed(2)} -> ${c.toFixed(2)})`
+          note = `${verdict}: was ${a.toFixed(2)}, now ${c.toFixed(2)}`
         }
         return { name: f.name, cid: f.cid, kind: f.kind, issued: prev!.date, note }
       })
