@@ -280,6 +280,11 @@ export default function AgentBrief() {
   const setGoal = (org: string, v: number) => {
     const next = { ...goals, [org]: v }
     setGoals(next)
+    const top = Object.values(demo.campaigns)
+      .filter((m) => m.org === org)
+      .map((m) => ({ cid: m.campaign_id, sp: demo.series[m.campaign_id]?.at(-1)?.spend ?? 0 }))
+      .sort((a, b) => b.sp - a.sp)[0]
+    if (top) setSelected(top.cid)
     const overrides: Record<string, number> = {}
     for (const [o, g] of Object.entries(next))
       if (g !== DEFAULT_GOALS[o]) overrides[o] = g
@@ -290,12 +295,9 @@ export default function AgentBrief() {
     localStorage.removeItem(GOALS_KEY)
   }
 
-  const onPage = new Set([
-    ...brief.act.map((f) => f.cid), ...brief.watch.map((f) => f.cid),
-    ...brief.expected.map((e) => e.cid),
-  ])
   const evidenceCid =
-    selected && onPage.has(selected) ? selected : brief.act[0]?.cid ?? brief.watch[0]?.cid ?? null
+    selected && demo.campaigns[selected] ? selected
+      : brief.act[0]?.cid ?? brief.watch[0]?.cid ?? null
 
   return (
     <div className="space-y-6">
@@ -341,7 +343,7 @@ export default function AgentBrief() {
             return (
               <button
                 key={d}
-                onClick={() => { setIdx(i); setPlaying(false) }}
+                onClick={() => { setIdx(i); setPlaying(false); setSelected(null) }}
                 title={`${fmtWeek(d)}: ${n} action item${n === 1 ? '' : 's'}`}
                 className={`group flex flex-1 flex-col items-center gap-1 ${i === idx ? '' : 'opacity-60 hover:opacity-100'}`}
               >
