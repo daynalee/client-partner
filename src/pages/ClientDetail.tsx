@@ -167,7 +167,7 @@ export default function ClientDetail() {
 
       <div className="mt-8 grid gap-5 lg:grid-cols-3">
         <Card>
-          <Eyebrow>Spend vs plan — weekly</Eyebrow>
+          <Eyebrow>Spend vs plan, weekly</Eyebrow>
           <div className="mt-3"><SpendVsPlan weekly={weekly} weeklyPlan={client.monthlyPlan / WEEKS_PER_MONTH} /></div>
         </Card>
         <Card>
@@ -186,8 +186,8 @@ export default function ClientDetail() {
       </div>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-2">
-        <Breakdown title="Creative performance — spend & ROAS" rows={groupBy((r) => r.campaign.creativeType)} />
-        <Breakdown title="Audience performance — spend & ROAS" rows={groupBy((r) => r.campaign.audience)} />
+        <Breakdown title="Creative performance: spend & ROAS" rows={groupBy((r) => r.campaign.creativeType)} />
+        <Breakdown title="Audience performance: spend & ROAS" rows={groupBy((r) => r.campaign.audience)} />
       </div>
 
       <div className="mt-8">
@@ -268,7 +268,7 @@ export default function ClientDetail() {
             <div>
               <h3 className="text-sm font-semibold text-ink">Walking into a client meeting?</h3>
               <p className="mt-0.5 text-sm text-ink-secondary">
-                Generate the full prep pack — summary, agenda, talking points, and a follow-up email draft.
+                Generate the full prep pack: summary, agenda, talking points, and a follow-up email draft.
               </p>
             </div>
             <button

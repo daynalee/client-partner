@@ -12,7 +12,7 @@ export default function Experiments() {
         <Eyebrow>Measurement &amp; testing</Eyebrow>
         <h1 className="mt-1 font-serif text-3xl text-ink">Experimentation Planner</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-secondary">
-          Pick the business problem you're solving. The planner returns a structured test design —
+          Pick the business problem you're solving. The planner returns a structured test design:
           because a test without a pre-agreed decision rule is just spend with extra steps.
         </p>
       </div>

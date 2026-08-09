@@ -12,7 +12,7 @@ export default function Portfolio() {
   return (
     <div>
       <div className="mb-8">
-        <Eyebrow>Book of business — Fashion &amp; Apparel</Eyebrow>
+        <Eyebrow>Book of business: Fashion &amp; Apparel</Eyebrow>
         <h1 className="mt-1 font-serif text-3xl text-ink">Client Portfolio</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-secondary">
           {CLIENTS.length} enterprise advertisers · {fmtUSD(totalSpend)} monthly investment ·{' '}

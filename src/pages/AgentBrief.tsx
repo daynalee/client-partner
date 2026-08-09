@@ -509,7 +509,7 @@ export default function AgentBrief() {
                         {p.wow >= 0 ? '+' : ''}{Math.round(p.wow * 100)}%
                       </td>
                       <td className={`px-4 py-2 text-right tabular-nums ${p.d7 !== null && p.tgt !== null ? (p.d7 >= p.tgt ? 'text-status-good-text' : 'text-[#a02c2c]') : ''}`}>
-                        {p.d7 !== null ? x2(p.d7) : '–'}
+                        {p.d7 !== null ? x2(p.d7) : '·'}
                       </td>
                       <td className="px-4 py-2 text-right">
                         <span className="inline-flex items-center gap-0.5">

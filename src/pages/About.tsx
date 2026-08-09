@@ -5,12 +5,12 @@ export default function About() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-8">
         <Eyebrow>Portfolio project</Eyebrow>
-        <h1 className="mt-1 font-serif text-3xl text-ink">About Client Partner Copilot</h1>
+        <h1 className="mt-1 font-serif text-3xl text-ink">About Hemline</h1>
       </div>
 
       <Card>
         <p className="text-sm leading-relaxed text-ink-secondary">
-          Client Partner Copilot is a portfolio prototype exploring how AI could help digital
+          Hemline is a portfolio prototype exploring how AI could help digital
           advertising Client Partners turn campaign performance data into strategic
           recommendations, client-ready insights, meeting preparation, and growth opportunities.
           All advertiser names and performance data are fictional and used for demonstration
@@ -23,13 +23,13 @@ export default function About() {
         <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
           Client Partners spend a large share of their week doing manual account analysis:
           pulling reports, hunting for the story in the numbers, and reformatting it for
-          meetings. The strategic thinking — what to do about the numbers, and how to say it to
-          a client — is where a Client Partner actually earns their seat at the table.
+          meetings. The strategic thinking is where a Client Partner actually earns their seat
+          at the table: what to do about the numbers, and how to say it to a client.
         </p>
         <p className="mt-3 text-sm leading-relaxed text-ink-secondary">
           This prototype explores what happens when the analysis layer is automated: every
           recommendation, talking point, and email in this tool is derived from the underlying
-          campaign data by explicit rules — the same signals an experienced Client Partner scans
+          campaign data by explicit rules, the same signals an experienced Client Partner scans
           for (an underfunded winner, a fatigued creative, a saturated retargeting pool, a
           suspicious conversion rate). AI that handles that first pass frees the human for the
           part machines can't do: the client conversation.
@@ -44,7 +44,7 @@ export default function About() {
           <li>• Funnel structure: saturated retargeting triggers upper-funnel expansion, not more retargeting budget.</li>
           <li>• Measurement first: strong clicks with weak conversions triggers a tracking audit before any media change.</li>
           <li>• Incrementality: prospecting is judged on new-customer growth and holdout tests, not last-click ROAS.</li>
-          <li>• Seasonality: recommendations assume shoppers plan 2–3 months ahead of the purchase moment.</li>
+          <li>• Seasonality: recommendations assume shoppers plan 2 to 3 months ahead of the purchase moment.</li>
         </ul>
       </Card>
 
