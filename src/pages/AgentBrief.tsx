@@ -137,7 +137,8 @@ function EvidencePanel({ cid, date, goal }: { cid: string; date: string; goal: n
             <XAxis dataKey="date" tick={AXIS} tickLine={false} minTickGap={28}
               axisLine={{ stroke: '#c3c2b7' }} tickFormatter={fmtWeek} />
             <YAxis tick={AXIS} tickLine={false} axisLine={false}
-              tickFormatter={(v: number) => `${v}x`} domain={[0, 'auto']} />
+              tickFormatter={(v: number) => `${v}x`}
+              domain={[0, (dataMax: number) => Math.max(dataMax * 1.05, goal ? goal * 1.1 : 0)]} />
             <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => fmtWeek(String(l))}
               formatter={(v) => [`${v}x`, '7d ROAS']} />
             {matX1 && (
@@ -257,6 +258,11 @@ export default function AgentBrief() {
       demo.maturityDays, dates),
     [goals, dates],
   )
+  const defaultBriefs = useMemo(
+    () => computeAllBriefs(demo.campaigns, demo.series, DEFAULT_GOALS,
+      demo.promo, demo.maturityDays, dates),
+    [dates],
+  )
   const date = dates[idx]
   const brief = briefs[date]
   const maxAct = Math.max(...dates.map((d) => briefs[d].act.length), 1)
@@ -298,6 +304,33 @@ export default function AgentBrief() {
   const evidenceCid =
     selected && demo.campaigns[selected] ? selected
       : brief.act[0]?.cid ?? brief.watch[0]?.cid ?? null
+
+  const goalDiff = useMemo(() => {
+    if (!goalsDirty) return null
+    const tag = (b: Brief) => {
+      const m = new Map<string, string>()
+      b.act.forEach((f) => m.set(`${f.cid}:${f.kind}`, 'Act'))
+      b.watch.forEach((f) => m.set(`${f.cid}:${f.kind}`, 'Watch'))
+      return m
+    }
+    const cur = tag(brief)
+    const def = tag(defaultBriefs[date])
+    const counts = new Map<string, number>()
+    const bump = (label: string) => counts.set(label, (counts.get(label) ?? 0) + 1)
+    cur.forEach((bucket, key) => {
+      if (def.get(key) !== bucket) {
+        const [cid, kind] = key.split(':')
+        bump(`${demo.campaigns[cid]?.org ?? cid} ${KIND_LABEL[kind as Kind].toLowerCase()} now in ${bucket}`)
+      }
+    })
+    def.forEach((bucket, key) => {
+      if (!cur.has(key)) {
+        const [cid, kind] = key.split(':')
+        bump(`${demo.campaigns[cid]?.org ?? cid} ${KIND_LABEL[kind as Kind].toLowerCase()} cleared (was ${bucket})`)
+      }
+    })
+    return [...counts.entries()].map(([l, n]) => (n > 1 ? `${l} (x${n})` : l))
+  }, [goalsDirty, brief, defaultBriefs, date])
 
   return (
     <div className="space-y-6">
@@ -483,6 +516,18 @@ export default function AgentBrief() {
                 </button>
               )}
             </div>
+            {goalDiff && (
+              goalDiff.length > 0 ? (
+                <div className="rounded-lg border border-[#2a78d6]/30 bg-[#eef5fd] px-3 py-2 text-[12px] leading-relaxed text-ink-secondary">
+                  <span className="font-semibold text-[#2a78d6]">Your goals changed the brief: </span>
+                  {goalDiff.join(' · ')}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-hairline px-3 py-2 text-[12px] text-ink-muted">
+                  Your goal edits don't cross a decision line on this date. Colors and goal lines update; findings hold.
+                </div>
+              )
+            )}
             <Card className="!p-0 overflow-hidden">
               <table className="w-full text-[13px]">
                 <thead>
