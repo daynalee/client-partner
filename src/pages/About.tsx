@@ -5,12 +5,12 @@ export default function About() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-8">
         <Eyebrow>Portfolio project</Eyebrow>
-        <h1 className="mt-1 font-serif text-3xl text-ink">About Hemline</h1>
+        <h1 className="mt-1 font-serif text-3xl text-ink">About Dayna's Dashboard</h1>
       </div>
 
       <Card>
         <p className="text-sm leading-relaxed text-ink-secondary">
-          Hemline is a portfolio prototype exploring how AI could help digital
+          Dayna's Dashboard is a portfolio prototype exploring how AI could help digital
           advertising Client Partners turn campaign performance data into strategic
           recommendations, client-ready insights, meeting preparation, and growth opportunities.
           All advertiser names and performance data are fictional and used for demonstration

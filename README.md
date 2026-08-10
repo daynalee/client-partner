@@ -1,4 +1,4 @@
-# Hemline
+# Dayna's Dashboard
 
 A portfolio prototype exploring how AI could help digital advertising **Client Partners** turn
 campaign performance data into strategic recommendations, client-ready insights, meeting
