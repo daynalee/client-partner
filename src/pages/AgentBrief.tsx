@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ReferenceArea,
@@ -138,7 +138,7 @@ function EvidencePanel({ cid, date, goal }: { cid: string; date: string; goal: n
               axisLine={{ stroke: '#c3c2b7' }} tickFormatter={fmtWeek} />
             <YAxis tick={AXIS} tickLine={false} axisLine={false}
               tickFormatter={(v: number) => `${v}x`}
-              domain={[0, (dataMax: number) => Math.max(dataMax * 1.05, goal ? goal * 1.1 : 0)]} />
+              domain={[0, (dataMax: number) => Math.ceil(Math.max(dataMax * 1.05, goal ? goal * 1.1 : 0) * 4) / 4]} />
             <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => fmtWeek(String(l))}
               formatter={(v) => [`${v}x`, '7d ROAS']} />
             {matX1 && (
@@ -249,7 +249,6 @@ export default function AgentBrief() {
     }
   })
   const [idx, setIdx] = useState(dates.length - 1)
-  const [playing, setPlaying] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [showTruth, setShowTruth] = useState(false)
 
@@ -268,20 +267,6 @@ export default function AgentBrief() {
   const maxAct = Math.max(...dates.map((d) => briefs[d].act.length), 1)
   const goalsDirty = Object.keys(DEFAULT_GOALS)
     .some((o) => goals[o] !== DEFAULT_GOALS[o])
-
-  useEffect(() => {
-    if (!playing) return
-    const t = setInterval(() => {
-      setIdx((i) => {
-        if (i >= dates.length - 1) {
-          setPlaying(false)
-          return i
-        }
-        return i + 1
-      })
-    }, 1000)
-    return () => clearInterval(t)
-  }, [playing, dates.length])
 
   const setGoal = (org: string, v: number) => {
     const next = { ...goals, [org]: v }
@@ -338,65 +323,41 @@ export default function AgentBrief() {
         eyebrow="Daily performance agent"
         title="Performance Pulse"
         right={
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                if (playing) {
-                  setPlaying(false)
-                  return
-                }
-                if (idx >= dates.length - 1) setIdx(0)
-                setPlaying(true)
-              }}
-              className="rounded-full border border-hairline bg-surface px-4 py-1.5 text-sm font-medium text-ink hover:bg-hairline/40"
-            >
-              {playing ? '⏸ Pause' : '▶ Replay'}
-            </button>
-            <span className="font-serif text-lg tabular-nums text-ink">
-              {new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            </span>
-          </div>
+          <span className="font-serif text-lg tabular-nums text-ink">
+            {new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          </span>
         }
       />
 
       <p className="max-w-3xl text-sm leading-relaxed text-ink-secondary">
-        A daily triage of every campaign across seven advertisers.
-        Scrub the timeline, hover anything dotted for a definition, and
+        A daily triage of every campaign across seven advertisers. Click a day in the
+        strip for that day's brief, hover anything dotted for a definition, and
         <span className="font-medium text-ink"> edit any goal in the table</span> to watch the
         calls recompute.
       </p>
 
-      {/* timeline */}
-      <Card className="!p-4">
-        <div className="overflow-x-auto">
-          <div className="flex min-w-[560px] items-end gap-1">
+      {/* day strip */}
+      <div className="max-w-xl">
+        <div className="flex items-end gap-[3px]">
           {dates.map((d, i) => {
             const n = briefs[d].act.length
             const inPromo = d >= demo.promo.start && d <= demo.promo.end
             return (
               <button
                 key={d}
-                onClick={() => { setIdx(i); setPlaying(false); setSelected(null) }}
-                title={`${fmtWeek(d)}: ${n} action item${n === 1 ? '' : 's'}`}
-                className={`group flex flex-1 flex-col items-center gap-1 ${i === idx ? '' : 'opacity-60 hover:opacity-100'}`}
-              >
-                <div
-                  className={`w-full rounded-sm transition-all ${i === idx ? 'bg-[#2a78d6]' : n > 0 ? 'bg-[#d03b3b]/60' : 'bg-hairline'}`}
-                  style={{ height: `${10 + (n / maxAct) * 34}px` }}
-                />
-                <span className={`text-[10px] tabular-nums ${i === idx ? 'font-semibold text-ink' : 'text-ink-muted'} ${inPromo ? 'underline decoration-dotted' : ''}`}>
-                  {fmtWeek(d)}
-                </span>
-              </button>
+                onClick={() => { setIdx(i); setSelected(null) }}
+                title={`${fmtWeek(d)}: ${n} action item${n === 1 ? '' : 's'}${inPromo ? ' (promo)' : ''}`}
+                className={`flex-1 rounded-sm transition-colors ${i === idx ? 'bg-[#2a78d6]' : n > 0 ? 'bg-[#d03b3b]/35 hover:bg-[#d03b3b]/60' : 'bg-hairline hover:bg-[#c3c2b7]'}`}
+                style={{ height: `${6 + (n / maxAct) * 14}px` }}
+              />
             )
           })}
-          </div>
         </div>
-        <div className="mt-2 flex items-center justify-between gap-4 text-[11px] text-ink-muted">
-          <span>Bar height shows that day's action items. Dotted dates fall in the promo window.</span>
-          <span>{demo.promo.label}: {fmtWeek(demo.promo.start)} to {fmtWeek(demo.promo.end)}</span>
+        <div className="mt-1 flex justify-between text-[10px] text-ink-muted">
+          <span>{fmtWeek(dates[0])}</span>
+          <span>{fmtWeek(dates[dates.length - 1])}</span>
         </div>
-      </Card>
+      </div>
 
       <div className="flex flex-wrap gap-5">
         <CountChip label="act now" n={brief.act.length} tone="bg-status-critical"
