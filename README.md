@@ -1,4 +1,13 @@
-# Dayna's Dashboard
+# Client Partner Copilot
+### Turning campaign data into client-ready strategy for ad sales teams
+
+[![Live demo](https://img.shields.io/badge/live_demo-open-1a1a1a?style=flat-square)](https://daynalee.github.io/client-partner/)
+![React](https://img.shields.io/badge/React_19-black?style=flat-square&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-black?style=flat-square&logo=typescript)
+![Recharts](https://img.shields.io/badge/Recharts-black?style=flat-square)
+![Static](https://img.shields.io/badge/no_backend-static-black?style=flat-square)
+
+**Live: https://daynalee.github.io/client-partner/**
 
 A portfolio prototype exploring how AI could help digital advertising **Client Partners** turn
 campaign performance data into strategic recommendations, client-ready insights, meeting
@@ -8,6 +17,8 @@ preparation, and growth opportunities: built around a fictional book of enterpri
 > **Disclaimer:** All advertiser names, campaigns, and performance data are fictional and
 > generated for demonstration purposes only. No real company data is used or implied. This is
 > an independent portfolio project, not affiliated with or endorsed by any advertising platform.
+
+[![Client detail view](docs/cp-client.png)](https://daynalee.github.io/client-partner/)
 
 ## Why I built this
 
@@ -28,6 +39,9 @@ client conversation.
 - **Client Detail**: executive summary, spend vs. plan, ROAS and revenue trends, campaign
   table with out/underperformer flags, creative and audience breakdowns, seasonal
   opportunities, and risks.
+- **Performance Pulse**: a daily triage across every campaign in the book, sorted into act,
+  watching, and expected, with the revenue at stake per day, the evidence behind each call,
+  and goals you can edit to watch the triage recompute.
 - **AI Growth Opportunities**: 3 to 5 rule-derived recommendations per client, each with
   *what's happening* (with the actual numbers), *why it matters*, *recommended action*, and
   *expected impact*.
@@ -39,6 +53,19 @@ client conversation.
 - **Experimentation Planner**: pick a business problem (low ROAS, declining CTR, creative
   fatigue, low conversion rate, need scale, seasonal launch) and get a structured test design:
   hypothesis, setup, KPI, success criteria, duration, and a pre-agreed decision framework.
+
+## Screens
+
+**Client portfolio.** The full book at a glance, with health status, pacing, and the
+accounts that need attention this week surfaced first.
+
+![Client portfolio](docs/cp-portfolio.png)
+
+**Performance Pulse.** A daily triage of every campaign across all seven advertisers, sorted
+into act / watch / expected with the dollars at stake per day, an evidence panel behind each
+call, and editable goals that recompute the triage live.
+
+![Performance pulse](docs/cp-agent.png)
 
 ## The insight engine
 
