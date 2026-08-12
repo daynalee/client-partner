@@ -1,4 +1,4 @@
-# Client Partner Copilot
+# Dayna's Dashboard
 ### Turning campaign data into client-ready strategy for ad sales teams
 
 [![Live demo](https://img.shields.io/badge/live_demo-open-1a1a1a?style=flat-square)](https://daynalee.github.io/client-partner/)
